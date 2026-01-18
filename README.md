@@ -23,6 +23,11 @@ Quickly view and search your YouTube subscriptions from an in-page overlay.
 - If it cannot find subscriptions, you will see a sign-in prompt and links to log in.
 - Subscriptions are fetched on demand and not stored locally.
 
+## Screenshots
+
+- `assets/screens/my-yt-subscriptions.png`
+- `assets/screens/my-yt-subscriptions-search.png`
+
 ## Privacy
 
 - Privacy policy: https://github.com/ahgood/my-yt-subs/blob/main/PRIVACY_POLICY.md
