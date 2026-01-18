@@ -1,0 +1,61 @@
+<div class="my-yt-subs-overlay" data-overlay-root>
+  <div class="my-yt-subs-backdrop" data-overlay-close></div>
+  <div class="my-yt-subs-panel" role="dialog" aria-modal="true">
+    <header class="my-yt-subs-header">
+      <div class="my-yt-subs-brand">
+        <div class="my-yt-subs-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M4 7.5C4 6.12 5.12 5 6.5 5h11c1.38 0 2.5 1.12 2.5 2.5v9c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 19 4 17.88 4 16.5v-9Z"
+            />
+            <path d="M10 9.5 15.5 12 10 14.5Z" />
+          </svg>
+        </div>
+        <div>
+          <div class="my-yt-subs-title">My YT Subscriptions</div>
+          <div class="my-yt-subs-subtitle">
+            Browse your channel list without leaving the page.
+          </div>
+        </div>
+      </div>
+      <div class="my-yt-subs-actions">
+        <button
+          type="button"
+          class="my-yt-subs-close"
+          data-overlay-close
+          aria-label="Close overlay"
+        ></button>
+      </div>
+    </header>
+
+    <div class="my-yt-subs-search">
+      <input
+        type="search"
+        placeholder="Search channels"
+        autocomplete="off"
+        aria-label="Search channels"
+        data-search
+      />
+    </div>
+
+    <div class="my-yt-subs-body">
+      <div class="my-yt-subs-state" data-state>
+        <div class="my-yt-subs-spinner"></div>
+        <div data-state-text>Loading subscriptions...</div>
+      </div>
+      <div class="my-yt-subs-list" data-list hidden></div>
+      <div class="my-yt-subs-empty" data-empty hidden>
+        <div class="my-yt-subs-empty-title">Please sign in to YouTube to load subscriptions.</div>
+        <div class="my-yt-subs-empty-body">
+          Open YouTube and sign in, then click Refresh.
+        </div>
+        <div class="my-yt-subs-empty-actions">
+          <button type="button" class="my-yt-subs-button primary" data-login>Login to YouTube</button>
+          <button type="button" class="my-yt-subs-button ghost" data-open-feed>
+            Open Subscriptions
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
