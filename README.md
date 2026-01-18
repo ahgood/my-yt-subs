@@ -22,3 +22,7 @@ Quickly view and search your YouTube subscriptions from an in-page overlay.
 - The extension fetches https://www.youtube.com/feed/channels and parses subscription data.
 - If it cannot find subscriptions, you will see a sign-in prompt and links to log in.
 - Subscriptions are fetched on demand and not stored locally.
+
+## Privacy
+
+- Privacy policy: https://github.com/ahgood/my-yt-subs/blob/main/PRIVACY_POLICY.md
