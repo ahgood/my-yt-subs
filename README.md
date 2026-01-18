@@ -1,6 +1,6 @@
 # My YT Subscriptions
 
-Quickly view and search your YouTube subscriptions from a Chrome toolbar popup.
+Quickly view and search your YouTube subscriptions from an in-page overlay.
 
 ## Install
 
@@ -12,13 +12,13 @@ Quickly view and search your YouTube subscriptions from a Chrome toolbar popup.
 ## Use
 
 1. Make sure you are signed in to YouTube in Chrome.
-2. Click the **My YT Subscriptions** extension icon.
+2. Click the **My YT Subscriptions** extension icon to open the overlay.
 3. Use the search box to filter channels.
-4. Click a channel row to open it in a new tab.
-5. Use **Refresh** to re-fetch subscriptions.
+4. Click a channel card to open it in a new tab.
+5. Click the close button or press Esc to dismiss the overlay.
 
 ## Notes
 
 - The extension fetches https://www.youtube.com/feed/channels and parses subscription data.
 - If it cannot find subscriptions, you will see a sign-in prompt and links to log in.
-- Results are cached for 30 minutes in `chrome.storage.local`.
+- Subscriptions are fetched on demand and not stored locally.
