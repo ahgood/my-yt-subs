@@ -2,6 +2,8 @@
 
 Quickly view and search your YouTube subscriptions from an in-page overlay.
 
+![My YT Subscriptions](https://github.com/ahgood/my-yt-subs/blob/main/assets/screens/my-yt-subscriptions.png?raw=true)
+
 ## Install
 
 1. Open Chrome and go to `chrome://extensions`.
