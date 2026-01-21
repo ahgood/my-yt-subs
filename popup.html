@@ -9,35 +9,16 @@
   <body>
     <header class="top-bar">
       <div class="title">My YT Subscriptions</div>
-      <div class="actions">
-        <button id="refreshButton" class="ghost">Refresh</button>
-      </div>
     </header>
 
-    <div class="search-wrap">
-      <input
-        id="searchInput"
-        type="search"
-        placeholder="Search channels"
-        autocomplete="off"
-        aria-label="Search channels"
-      />
-    </div>
-
     <main class="content">
-      <div id="state" class="state">
-        <div class="spinner"></div>
-        <div id="stateText">Loading subscriptions...</div>
-      </div>
-      <div id="list" class="list" hidden></div>
-      <div id="empty" class="empty" hidden>
-        <div class="empty-title">Please sign in to YouTube to load subscriptions.</div>
-        <div class="empty-body">
-          Open YouTube and sign in, then click Refresh.
+      <div id="empty" class="empty">
+        <div class="empty-title">
+          Open YouTube and click this icon again to view your subscriptions.
         </div>
+        <div class="empty-body">This overlay is only available on youtube.com.</div>
         <div class="empty-actions">
-          <button id="loginButton" class="primary">Login to YouTube</button>
-          <button id="openFeedButton" class="ghost">Open Subscriptions</button>
+          <button id="openYouTubeButton" class="primary">Go to YouTube</button>
         </div>
       </div>
     </main>

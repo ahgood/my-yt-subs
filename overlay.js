@@ -5,13 +5,13 @@ const OVERLAY_ID = "my-yt-subs-overlay";
 
 const SELECTORS = {
   search: "[data-search]",
+  searchWrap: "[data-search-wrap]",
   list: "[data-list]",
   state: "[data-state]",
   stateText: "[data-state-text]",
   empty: "[data-empty]",
   emptyActions: ".my-yt-subs-empty-actions",
   login: "[data-login]",
-  openFeed: "[data-open-feed]",
   close: "[data-overlay-close]",
 };
 
@@ -19,6 +19,7 @@ let overlayRoot = null;
 let overlayVisible = false;
 let allChannels = [];
 let elements = {
+  searchWrap: null,
   searchInput: null,
   listEl: null,
   stateEl: null,
@@ -26,7 +27,6 @@ let elements = {
   emptyEl: null,
   emptyActions: null,
   loginButton: null,
-  openFeedButton: null,
   closeButtons: [],
 };
 
@@ -52,6 +52,7 @@ async function ensureOverlay() {
 
 function bindOverlayElements() {
   elements = {
+    searchWrap: overlayRoot.querySelector(SELECTORS.searchWrap),
     searchInput: overlayRoot.querySelector(SELECTORS.search),
     listEl: overlayRoot.querySelector(SELECTORS.list),
     stateEl: overlayRoot.querySelector(SELECTORS.state),
@@ -59,7 +60,6 @@ function bindOverlayElements() {
     emptyEl: overlayRoot.querySelector(SELECTORS.empty),
     emptyActions: overlayRoot.querySelector(SELECTORS.emptyActions),
     loginButton: overlayRoot.querySelector(SELECTORS.login),
-    openFeedButton: overlayRoot.querySelector(SELECTORS.openFeed),
     closeButtons: Array.from(overlayRoot.querySelectorAll(SELECTORS.close)),
   };
 
@@ -72,11 +72,7 @@ function bindOverlayElements() {
   });
 
   elements.loginButton?.addEventListener("click", () => {
-    openExternal(LOGIN_URL);
-  });
-
-  elements.openFeedButton?.addEventListener("click", () => {
-    openExternal(FEED_URL);
+    openInCurrentTab(LOGIN_URL);
   });
 
   overlayRoot.addEventListener("keydown", (event) => {
@@ -90,6 +86,11 @@ function showOverlay() {
   overlayRoot.classList.remove("my-yt-subs-hidden");
   overlayVisible = true;
   document.body.style.overflow = "hidden";
+  setSearchVisible(true);
+  setEmptyActionsVisibility({
+    showActions: true,
+    showLogin: true,
+  });
   elements.searchInput?.focus();
   loadSubscriptions();
 }
@@ -110,6 +111,10 @@ function toggleOverlay() {
 }
 
 function setState(message) {
+  if (!elements.stateText || !elements.stateEl || !elements.listEl || !elements.emptyEl) {
+    return;
+  }
+  setSearchVisible(true);
   elements.stateText.textContent = message;
   elements.stateEl.hidden = false;
   elements.listEl.hidden = true;
@@ -117,19 +122,25 @@ function setState(message) {
 }
 
 function showEmpty() {
+  setSearchVisible(false);
   showEmptyState("Please sign in to YouTube to load subscriptions.", {
     bodyText: "Open YouTube and sign in, then open the overlay again.",
     showActions: true,
+    actions: {
+      showLogin: true,
+    },
   });
 }
 
 function showList() {
+  setSearchVisible(true);
   elements.stateEl.hidden = true;
   elements.listEl.hidden = false;
   elements.emptyEl.hidden = true;
 }
 
 function showEmptyState(message, options = {}) {
+  setSearchVisible(false);
   elements.stateEl.hidden = true;
   elements.listEl.hidden = true;
   elements.emptyEl.hidden = false;
@@ -143,6 +154,25 @@ function showEmptyState(message, options = {}) {
   }
   if (elements.emptyActions) {
     elements.emptyActions.hidden = !options.showActions;
+    if (options.showActions && options.actions) {
+      setEmptyActionsVisibility(options.actions);
+    }
+  }
+}
+
+function setSearchVisible(visible) {
+  if (!elements.searchWrap) return;
+  elements.searchWrap.hidden = !visible;
+}
+
+function setEmptyActionsVisibility({
+  showActions = true,
+  showLogin = true,
+} = {}) {
+  if (!elements.emptyActions) return;
+  elements.emptyActions.hidden = !showActions;
+  if (elements.loginButton) {
+    elements.loginButton.hidden = !showLogin;
   }
 }
 
@@ -152,9 +182,15 @@ function normalizeUrl(url) {
   return `https://www.youtube.com${url}`;
 }
 
+
 function openExternal(url) {
   if (!url) return;
   window.open(url, "_blank", "noopener");
+}
+
+function openInCurrentTab(url) {
+  if (!url) return;
+  window.location.href = url;
 }
 
 function renderList(channels) {
@@ -316,11 +352,14 @@ async function loadSubscriptions() {
       if (hasSignedOutMarkers(html)) {
         showEmpty();
       } else {
-        showEmptyState("Unable to find subscriptions.", {
-          bodyText:
-            "YouTube may have updated the page. Reopen the overlay or open the subscriptions feed.",
-          showActions: true,
-        });
+    showEmptyState("Unable to find subscriptions.", {
+      bodyText:
+        "YouTube may have updated the page. Reopen the overlay or open the subscriptions feed.",
+      showActions: true,
+      actions: {
+        showLogin: true,
+      },
+    });
       }
       return;
     }
