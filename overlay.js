@@ -22,6 +22,7 @@ const SELECTORS = {
   starredSection: "[data-starred-section]",
   allSection: "[data-all-section]",
   starredCount: "[data-starred-count]",
+  body: "[data-body]",
   allCount: "[data-all-count]",
   state: "[data-state]",
   stateText: "[data-state-text]",
@@ -51,6 +52,7 @@ let elements = {
   searchWrap: null,
   searchInput: null,
   listEl: null,
+  bodyEl: null,
   starredListEl: null,
   starredSection: null,
   allSection: null,
@@ -112,6 +114,7 @@ function bindOverlayElements() {
     searchWrap: overlayRoot.querySelector(SELECTORS.searchWrap),
     searchInput: overlayRoot.querySelector(SELECTORS.search),
     listEl: overlayRoot.querySelector(SELECTORS.list),
+    bodyEl: overlayRoot.querySelector(SELECTORS.body),
     starredListEl: overlayRoot.querySelector(SELECTORS.starredList),
     starredSection: overlayRoot.querySelector(SELECTORS.starredSection),
     allSection: overlayRoot.querySelector(SELECTORS.allSection),
@@ -476,11 +479,53 @@ function buildStarredPayload() {
   };
 }
 
+function findCardByKey(key) {
+  if (!key || !elements.bodyEl) return null;
+  return (
+    Array.from(elements.bodyEl.querySelectorAll(".my-yt-subs-card")).find(
+      (card) => card.dataset.channelKey === key
+    ) || null
+  );
+}
+
+function captureScrollAnchor(movingKey) {
+  const scroller = elements.bodyEl;
+  if (!scroller) return null;
+
+  const scrollerTop = scroller.getBoundingClientRect().top;
+  const cards = Array.from(scroller.querySelectorAll(".my-yt-subs-card"));
+  // The topmost card still on screen, ignoring the one that is about to move.
+  for (const card of cards) {
+    if (card.dataset.channelKey === movingKey) continue;
+    const offset = card.getBoundingClientRect().top - scrollerTop;
+    if (offset >= 0) {
+      return { key: card.dataset.channelKey, offset, scrollTop: scroller.scrollTop };
+    }
+  }
+  return { key: "", offset: 0, scrollTop: scroller.scrollTop };
+}
+
+function restoreScrollAnchor(anchor) {
+  const scroller = elements.bodyEl;
+  if (!scroller || !anchor) return;
+
+  scroller.scrollTop = anchor.scrollTop;
+  const card = findCardByKey(anchor.key);
+  if (!card) return;
+
+  // Moving a card between sections changes the height above it, so pin the
+  // card the viewer was looking at back to the same place on screen.
+  const offset = card.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  scroller.scrollTop += offset - anchor.offset;
+}
+
 function toggleStar(channel) {
   const key = starKey(channel.url);
   if (!key) return;
 
   setFooterStatus("");
+  const anchor = captureScrollAnchor(key);
+
   if (starredChannels.has(key)) {
     starredChannels.delete(key);
   } else {
@@ -494,13 +539,15 @@ function toggleStar(channel) {
   }
   saveStarred();
   applyCurrentFilter();
+  restoreScrollAnchor(anchor);
 
   // Re-rendering replaced the button that was just clicked, so hand focus to
-  // its counterpart in whichever section the card landed in.
+  // its counterpart in whichever section the card landed in. preventScroll
+  // matters: focus() would otherwise scroll the moved card into view.
   const buttons = overlayRoot?.querySelectorAll("[data-star-key]") ?? [];
   Array.from(buttons)
     .find((button) => button.dataset.starKey === key)
-    ?.focus();
+    ?.focus({ preventScroll: true });
 }
 
 function setFooterStatus(message) {
@@ -598,6 +645,7 @@ function renderCards(listEl, channels) {
 function createCard(channel) {
   const card = document.createElement("div");
   card.className = "my-yt-subs-card";
+  card.dataset.channelKey = starKey(channel.url);
   if (channel.isOrphan) {
     card.classList.add("is-orphan");
   }
