@@ -1,7 +1,7 @@
 {
   "name": "My YT Subscriptions",
-  "description": "Quickly view and search your YouTube subscriptions.",
-  "version": "1.2.1",
+  "description": "Search your YouTube subscriptions from an on-page overlay, star your favorites, and open any channel in seconds.",
+  "version": "1.2.2",
   "manifest_version": 3,
   "action": {
     "default_title": "My YT Subscriptions"
@@ -9,7 +9,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["https://www.youtube.com/*"],
   "web_accessible_resources": [
     {

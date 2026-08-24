@@ -31,16 +31,20 @@ Quickly view and search your YouTube subscriptions from an in-page overlay.
 
 - The extension fetches https://www.youtube.com/feed/channels and parses subscription data.
 - If it cannot find subscriptions, you will see a sign-in prompt and links to log in.
-- The channel list is cached in `localStorage` on youtube.com under
-  `myYtSubs.channels.v1`, so the overlay opens without waiting on a fetch. It is
-  only fetched automatically when that cache is empty; use refresh at any time
-  to update it. Hovering refresh shows how old the list is.
+- The channel list is cached in the extension's own storage
+  (`chrome.storage.local`, key `myYtSubs.channels.v1`), so the overlay opens
+  without waiting on a fetch. It is only fetched automatically when that cache
+  is empty; use refresh at any time to update it. Hovering refresh shows how old
+  the list is.
 - A failed refresh keeps the list you already have and reports the problem in
   the footer, so a network blip cannot leave you with an empty overlay.
 - Starred channels are the one exception: the channel URL, name, and avatar URL
-  are saved in `localStorage` on youtube.com under `myYtSubs.starred.v1`, so
-  they survive a browser restart. Clearing YouTube site data clears them, which
-  is what export and import are for.
+  are saved in the extension's own storage under `myYtSubs.starred.v1`, so they
+  survive a browser restart and are not touched by clearing YouTube site data.
+  Export and import move them between computers.
+- Versions up to 1.2.1 kept both in youtube.com's `localStorage`. Updating moves
+  that data into the extension's storage on the next time you open the overlay,
+  and removes the old copies.
 - A starred channel you later unsubscribe from stays in the Starred section,
   shown dimmed, until you unstar it.
 - Both sections are listed alphabetically: digits first, then letters (case

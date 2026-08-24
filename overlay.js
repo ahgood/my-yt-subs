@@ -180,8 +180,6 @@ function bindOverlayElements() {
     });
   });
 
-  loadStarred();
-
   // Keep the host page's keyboard shortcuts from reacting to typing in the overlay.
   ["keydown", "keypress", "keyup"].forEach((type) => {
     overlayRoot.addEventListener(type, (event) => {
@@ -217,7 +215,7 @@ function handleGlobalKeydown(event) {
   hideOverlay();
 }
 
-function showOverlay() {
+async function showOverlay() {
   overlayRoot.classList.remove("my-yt-subs-hidden");
   overlayVisible = true;
   previousBodyOverflow = document.body.style.overflow;
@@ -227,18 +225,20 @@ function showOverlay() {
     elements.searchInput.value = "";
   }
   setFooterStatus("");
-  // Another YouTube tab may have starred something since we last looked.
-  loadStarred();
   setSearchVisible(true);
   setEmptyActionsVisibility({
     showActions: true,
     showLogin: true,
   });
   elements.searchInput?.focus();
-  showChannelList();
+
+  await migrateLegacyStorage();
+  // Another YouTube tab may have starred something since we last looked.
+  await loadStarred();
+  await showChannelList();
 }
 
-function showChannelList() {
+async function showChannelList() {
   // Only hit the network when we have nothing to show; the Refresh button is
   // how a stale list gets updated.
   if (allChannels.length) {
@@ -247,7 +247,7 @@ function showChannelList() {
     return;
   }
 
-  const cached = loadCachedChannels();
+  const cached = await loadCachedChannels();
   if (cached.length) {
     allChannels = cached;
     refreshStarredFromFeed();
@@ -267,12 +267,12 @@ function hideOverlay() {
 }
 
 function toggleOverlay() {
-  if (!overlayRoot) return;
+  if (!overlayRoot) return Promise.resolve();
   if (overlayVisible) {
     hideOverlay();
-  } else {
-    showOverlay();
+    return Promise.resolve();
   }
+  return showOverlay();
 }
 
 function setState(message) {
@@ -431,37 +431,75 @@ function toStarredEntries(payload) {
   return entries;
 }
 
-function loadStarred() {
-  starredChannels = new Map();
-
-  let raw = null;
+// Extension storage, not the page's: content scripts share localStorage with
+// youtube.com itself, where the site (or a site-data wipe) can clear it.
+async function readStored(key) {
   try {
-    // localStorage throws outright when site data is blocked.
-    raw = localStorage.getItem(STARRED_KEY);
+    const result = await chrome.storage.local.get(key);
+    return result?.[key] ?? null;
   } catch (error) {
-    console.warn("Starred channels are unavailable", error);
-    return;
-  }
-  if (!raw) return;
-
-  try {
-    toStarredEntries(JSON.parse(raw)).forEach((entry) => {
-      starredChannels.set(entry.key, entry);
-    });
-  } catch (error) {
-    console.warn("Ignoring unreadable starred channels", error);
+    console.warn("Extension storage is unavailable", error);
+    return null;
   }
 }
 
-function saveStarred() {
+async function writeStored(key, value) {
   try {
-    localStorage.setItem(STARRED_KEY, JSON.stringify(buildStarredPayload()));
+    await chrome.storage.local.set({ [key]: value });
     return true;
   } catch (error) {
-    console.warn("Failed to save starred channels", error);
-    setFooterStatus("Could not save starred channels.");
+    console.warn("Failed to write extension storage", error);
     return false;
   }
+}
+
+async function migrateLegacyStorage() {
+  // Up to 1.2.1 both keys lived in youtube.com's localStorage. Sweep anything
+  // still there into extension storage. This runs on every open rather than
+  // once: a tab still running the old build can write those keys after we have
+  // already migrated. Existing extension storage always wins; the legacy copy
+  // is removed either way. Costs two synchronous reads when there is nothing
+  // to move.
+  for (const key of [STARRED_KEY, CHANNELS_KEY]) {
+    let raw = null;
+    try {
+      raw = localStorage.getItem(key);
+    } catch (error) {
+      // Site data blocked: nothing to migrate.
+      return;
+    }
+    if (!raw) continue;
+
+    try {
+      if ((await readStored(key)) == null) {
+        await writeStored(key, JSON.parse(raw));
+      }
+    } catch (error) {
+      console.warn("Ignoring unreadable legacy data", error);
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      // Leaving a stale copy behind is harmless; it is never read again.
+    }
+  }
+}
+
+async function loadStarred() {
+  starredChannels = new Map();
+  const payload = await readStored(STARRED_KEY);
+  if (!payload) return;
+  toStarredEntries(payload).forEach((entry) => {
+    starredChannels.set(entry.key, entry);
+  });
+}
+
+async function saveStarred() {
+  const saved = await writeStored(STARRED_KEY, buildStarredPayload());
+  if (!saved) {
+    setFooterStatus("Could not save starred channels.");
+  }
+  return saved;
 }
 
 function buildStarredPayload() {
@@ -537,6 +575,7 @@ function toggleStar(channel) {
       starredAt: Date.now(),
     });
   }
+  // Render first: the write reports its own failure in the footer.
   saveStarred();
   applyCurrentFilter();
   restoreScrollAnchor(anchor);
@@ -615,7 +654,7 @@ async function importStarred(file) {
     added += 1;
   });
 
-  const saved = saveStarred();
+  const saved = await saveStarred();
   applyCurrentFilter();
   if (saved) {
     setFooterStatus(`Imported ${pluralChannels(entries.length)} (${added} new).`);
@@ -712,52 +751,30 @@ function createStarButton(channel) {
   return button;
 }
 
-function loadCachedChannels() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(CHANNELS_KEY);
-  } catch (error) {
-    console.warn("Cached subscriptions are unavailable", error);
-    return [];
-  }
-  if (!raw) return [];
+async function loadCachedChannels() {
+  const payload = await readStored(CHANNELS_KEY);
+  const list = Array.isArray(payload) ? payload : payload?.channels;
+  if (!Array.isArray(list)) return [];
 
-  try {
-    const payload = JSON.parse(raw);
-    const list = Array.isArray(payload) ? payload : payload?.channels;
-    if (!Array.isArray(list)) return [];
-    const channels = list
-      .filter((item) => item?.name && item?.url)
-      .map((item) => ({
-        name: item.name,
-        url: item.url,
-        avatar: typeof item.avatar === "string" ? item.avatar : "",
-      }));
-    channelsFetchedAt = Number.isFinite(payload?.fetchedAt)
-      ? payload.fetchedAt
-      : 0;
-    return dedupeChannels(channels);
-  } catch (error) {
-    console.warn("Ignoring unreadable cached subscriptions", error);
-    return [];
-  }
+  const channels = list
+    .filter((item) => item?.name && item?.url)
+    .map((item) => ({
+      name: item.name,
+      url: item.url,
+      avatar: typeof item.avatar === "string" ? item.avatar : "",
+    }));
+  channelsFetchedAt = Number.isFinite(payload?.fetchedAt) ? payload.fetchedAt : 0;
+  return dedupeChannels(channels);
 }
 
-function saveCachedChannels() {
+async function saveCachedChannels() {
   channelsFetchedAt = Date.now();
-  try {
-    localStorage.setItem(
-      CHANNELS_KEY,
-      JSON.stringify({
-        version: 1,
-        fetchedAt: channelsFetchedAt,
-        channels: allChannels,
-      })
-    );
-  } catch (error) {
-    // A missing cache only costs a fetch next time, so keep this quiet.
-    console.warn("Failed to cache subscriptions", error);
-  }
+  // A missing cache only costs a fetch next time, so failure stays quiet.
+  await writeStored(CHANNELS_KEY, {
+    version: 1,
+    fetchedAt: channelsFetchedAt,
+    channels: allChannels,
+  });
 }
 
 function updateRefreshLabel() {
