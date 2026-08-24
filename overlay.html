@@ -21,6 +21,24 @@
       <div class="my-yt-subs-actions">
         <button
           type="button"
+          class="my-yt-subs-icon-button"
+          data-refresh
+          aria-label="Refresh subscriptions"
+          title="Refresh subscriptions"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              class="my-yt-subs-refresh-arc"
+              d="M18.24 8.4A7.2 7.2 0 1 1 12 4.8"
+            />
+            <path
+              class="my-yt-subs-refresh-head"
+              d="M14.4 4.8 11.4 2.5 11.4 7.1Z"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
           class="my-yt-subs-close"
           data-overlay-close
           aria-label="Close overlay"
@@ -43,7 +61,23 @@
         <div class="my-yt-subs-spinner"></div>
         <div data-state-text>Loading subscriptions...</div>
       </div>
-      <div class="my-yt-subs-list" data-list hidden></div>
+
+      <section class="my-yt-subs-section" data-starred-section hidden>
+        <h2 class="my-yt-subs-section-title">
+          Starred
+          <span class="my-yt-subs-section-count" data-starred-count></span>
+        </h2>
+        <div class="my-yt-subs-list" data-starred-list></div>
+      </section>
+
+      <section class="my-yt-subs-section" data-all-section hidden>
+        <h2 class="my-yt-subs-section-title">
+          All channels
+          <span class="my-yt-subs-section-count" data-all-count></span>
+        </h2>
+        <div class="my-yt-subs-list" data-list></div>
+      </section>
+
       <div class="my-yt-subs-empty" data-empty hidden>
         <div class="my-yt-subs-empty-title">Please sign in to YouTube to load subscriptions.</div>
         <div class="my-yt-subs-empty-body">
@@ -54,5 +88,29 @@
         </div>
       </div>
     </div>
+
+    <footer class="my-yt-subs-footer">
+      <div
+        class="my-yt-subs-footer-status"
+        data-footer-status
+        role="status"
+        aria-live="polite"
+      ></div>
+      <div class="my-yt-subs-footer-actions">
+        <button type="button" class="my-yt-subs-button ghost" data-export>
+          Export starred
+        </button>
+        <button type="button" class="my-yt-subs-button ghost" data-import>
+          Import starred
+        </button>
+        <input
+          type="file"
+          accept="application/json,.json"
+          aria-label="Import starred channels"
+          data-import-file
+          hidden
+        />
+      </div>
+    </footer>
   </div>
 </div>

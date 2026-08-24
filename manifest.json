@@ -14,7 +14,7 @@
   "web_accessible_resources": [
     {
       "resources": ["overlay.html"],
-      "matches": ["<all_urls>"]
+      "matches": ["https://www.youtube.com/*"]
     }
   ],
   "icons": {

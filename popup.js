@@ -7,4 +7,12 @@ openYouTubeButton?.addEventListener("click", () => {
   chrome.tabs.create({ url: YOUTUBE_URL });
 });
 
-chrome.runtime.sendMessage({ type: CLEAR_POPUP_MESSAGE }).catch(() => {});
+chrome.tabs
+  .query({ active: true, currentWindow: true })
+  .then(([tab]) =>
+    chrome.runtime.sendMessage({
+      type: CLEAR_POPUP_MESSAGE,
+      tabId: tab?.id,
+    })
+  )
+  .catch(() => {});

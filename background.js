@@ -12,7 +12,8 @@ function isYouTubeUrl(url) {
   if (!isHttpUrl(url)) return false;
   try {
     const { hostname } = new URL(url);
-    return hostname.endsWith("youtube.com");
+    // endsWith("youtube.com") alone would also match notyoutube.com.
+    return hostname === "youtube.com" || hostname.endsWith(".youtube.com");
   } catch (error) {
     return false;
   }
@@ -24,11 +25,27 @@ async function clearActionPopup(tabId) {
 
 function openPopupForTab(tab) {
   if (!tab || !tab.id) return;
-  lastActionTabId = tab.id;
-  chrome.action.setPopup({ tabId: tab.id, popup: POPUP_URL }, () => {
-    chrome.action.openPopup().catch((error) => {
+  const tabId = tab.id;
+  lastActionTabId = tabId;
+  chrome.action.setPopup({ tabId, popup: POPUP_URL }, () => {
+    let opening;
+    try {
+      opening = chrome.action.openPopup();
+    } catch (error) {
+      // openPopup() needs Chrome 127+; leave the popup set so the next click
+      // opens it the built-in way.
       console.warn("Failed to open popup", error);
-    });
+      return;
+    }
+    Promise.resolve(opening)
+      .then(() =>
+        // The popup is already showing, so unset it now: a configured popup
+        // suppresses onClicked, which would otherwise strand this tab.
+        clearActionPopup(tabId)
+      )
+      .catch((error) => {
+        console.warn("Failed to open popup", error);
+      });
   });
 }
 
@@ -60,12 +77,15 @@ chrome.action.onClicked.addListener(async (tab) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type === CLEAR_POPUP_MESSAGE && lastActionTabId) {
-    clearActionPopup(lastActionTabId).catch((error) => {
-      console.warn("Failed to clear popup", error);
-    });
-    return true;
-  }
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== CLEAR_POPUP_MESSAGE) return false;
+  // Prefer the tab the popup reports: lastActionTabId is lost whenever the
+  // service worker restarts.
+  const tabId =
+    typeof message.tabId === "number" ? message.tabId : lastActionTabId;
+  if (typeof tabId !== "number") return false;
+  clearActionPopup(tabId).catch((error) => {
+    console.warn("Failed to clear popup", error);
+  });
   return false;
 });

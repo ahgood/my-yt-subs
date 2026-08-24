@@ -27,7 +27,9 @@
   position: absolute;
   inset: 0;
   background: var(--overlay-bg);
-  backdrop-filter: blur(6px);
+  /* Blur re-samples whatever is behind it, every frame it changes: a playing
+     video keeps it busy. Keep the radius small; the panel hides most of it. */
+  backdrop-filter: blur(3px);
   animation: overlayFade 0.22s ease-out;
 }
 
@@ -35,7 +37,10 @@
   position: relative;
   width: min(980px, 92vw);
   max-height: 86vh;
-  background: linear-gradient(160deg, rgba(28, 30, 36, 0.98), rgba(12, 13, 17, 0.98));
+  /* Fully opaque on purpose: at 0.98 the compositor had to blend every scrolled
+     pixel with the blurred backdrop underneath. */
+  background: linear-gradient(160deg, rgb(28, 30, 36), rgb(12, 13, 17));
+  will-change: transform;
   border-radius: var(--overlay-radius);
   border: 1px solid var(--overlay-border);
   box-shadow: var(--overlay-shadow);
@@ -101,7 +106,8 @@
   flex-wrap: wrap;
 }
 
-.my-yt-subs-close {
+.my-yt-subs-close,
+.my-yt-subs-icon-button {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -133,14 +139,50 @@
   transform: rotate(-45deg);
 }
 
-.my-yt-subs-close:hover {
+.my-yt-subs-close:hover,
+.my-yt-subs-icon-button:enabled:hover {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
-.my-yt-subs-close:active {
+.my-yt-subs-close:active,
+.my-yt-subs-icon-button:enabled:active {
   transform: translateY(0);
+}
+
+.my-yt-subs-icon-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.my-yt-subs-refresh-arc {
+  fill: none;
+  stroke: var(--overlay-panel-ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.my-yt-subs-refresh-head {
+  fill: var(--overlay-panel-ink);
+  stroke: none;
+}
+
+.my-yt-subs-icon-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+  transform: none;
+}
+
+/* Spin while a refresh is in flight. */
+.my-yt-subs-icon-button.is-busy svg {
+  animation: overlaySpin 0.8s linear infinite;
+}
+
+.my-yt-subs-icon-button:focus-visible {
+  outline: none;
+  border-color: var(--overlay-accent);
+  box-shadow: 0 0 0 3px rgba(245, 211, 107, 0.18);
 }
 
 .my-yt-subs-search {
@@ -169,11 +211,27 @@
 }
 
 .my-yt-subs-body {
-  padding: 0 20px 20px;
-  overflow: hidden;
+  padding: 0 20px 4px;
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 12px;
+  /* Repaints stay inside this box, and reaching either end must not start
+     scrolling YouTube behind the overlay. */
+  contain: paint;
+  overscroll-behavior: contain;
+}
+
+.my-yt-subs-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.my-yt-subs-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
 }
 
 .my-yt-subs-state,
@@ -207,20 +265,30 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  margin-top: 3px;
   padding-top: 4px;
-  max-height: 54vh;
-  overflow-y: auto;
-  padding-right: 8px;
 }
 
-.my-yt-subs-list::-webkit-scrollbar {
-  width: 6px;
+.my-yt-subs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.my-yt-subs-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
+.my-yt-subs-section-title {
+  margin: 0;
+  font-family: var(--overlay-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--overlay-muted);
+}
+
+.my-yt-subs-section-count {
+  margin-left: 6px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .my-yt-subs-card {
@@ -231,15 +299,15 @@
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--overlay-border);
-  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.32);
+  /* A 24px shadow blur on every row of a long list is expensive to paint. */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.28);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease,
-    border-color 0.2s ease;
+  /* box-shadow is deliberately not transitioned: it repaints the card. */
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .my-yt-subs-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.38);
   border-color: rgba(255, 255, 255, 0.22);
 }
 
@@ -257,9 +325,61 @@
 }
 
 .my-yt-subs-name {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* A starred channel we can no longer find in the feed, e.g. after an
+   unsubscribe or an import. */
+.my-yt-subs-card.is-orphan {
+  opacity: 0.7;
+}
+
+.my-yt-subs-star {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.my-yt-subs-star svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--overlay-muted);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.my-yt-subs-star:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--overlay-border);
+}
+
+.my-yt-subs-star:hover svg {
+  stroke: var(--overlay-panel-ink);
+}
+
+.my-yt-subs-star[aria-pressed="true"] svg {
+  fill: var(--overlay-accent);
+  stroke: var(--overlay-accent);
+}
+
+.my-yt-subs-star:focus-visible {
+  outline: none;
+  border-color: var(--overlay-accent);
+  box-shadow: 0 0 0 3px rgba(245, 211, 107, 0.18);
 }
 
 .my-yt-subs-empty-title {
@@ -314,7 +434,37 @@
 }
 
 
+.my-yt-subs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--overlay-border);
+}
+
+.my-yt-subs-footer-status {
+  flex: 1;
+  min-width: 140px;
+  min-height: 16px;
+  font-size: 12px;
+  color: var(--overlay-muted);
+}
+
+.my-yt-subs-footer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .my-yt-subs-hidden {
+  display: none !important;
+}
+
+/* Our own display rules outrank the UA [hidden] rule, so restate it here
+   instead of relying on the host page shipping one. */
+.my-yt-subs-overlay [hidden] {
   display: none !important;
 }
 
@@ -361,7 +511,6 @@
 
   .my-yt-subs-list {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    max-height: 50vh;
   }
 }
 
@@ -379,6 +528,11 @@
   }
 
   .my-yt-subs-body {
-    padding: 0 16px 16px;
+    padding: 0 16px 4px;
+    padding-right: 10px;
+  }
+
+  .my-yt-subs-footer {
+    padding: 10px 16px 14px;
   }
 }
